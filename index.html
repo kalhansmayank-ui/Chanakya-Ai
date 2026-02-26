@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Chanakya AI</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Marked.js for Markdown -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    
+    <!-- DOMPurify for Security -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+
+    <!-- Tailwind Config -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        gemini: {
+                            bgLight: '#ffffff',
+                            bgDark: '#131314',
+                            sidebarLight: '#f0f4f9',
+                            sidebarDark: '#1e1f20',
+                            inputLight: '#f0f4f9',
+                            inputDark: '#1e1f20',
+                            hoverLight: '#e1e5ea',
+                            hoverDark: '#333537',
+                            textDark: '#e3e3e3',
+                            userBubbleLight: '#f0f4f9',
+                            userBubbleDark: '#1e1f20',
+                            accent: '#3b82f6'
+                        }
+                    },
+                    fontFamily: {
+                        sans:['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Base Layout */
+        html, body {
+            margin: 0; padding: 0; height: 100%;
+            -webkit-tap-highlight-color: transparent; scroll-behavior: smooth;
+        }
+
+        /* Loading Screen */
+        #loading {
+            position: fixed; inset: 0; z-index: 99999; background-color: #ffffff;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1), transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        html.dark #loading { background-color: #131314; }
+        
+        .logo-container { position: relative; animation: float 4s ease-in-out infinite; }
+        .logo-glow {
+            position: absolute; inset: -15px; background: linear-gradient(45deg, #3b82f6, #8b5cf6, #ec4899);
+            filter: blur(25px); border-radius: 50%; opacity: 0.25; z-index: -1; animation: pulseGlow 4s ease-in-out infinite;
+        }
+        html.dark .logo-glow { opacity: 0.4; }
+
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
+        @keyframes pulseGlow { 0%, 100% { opacity: 0.2; transform: scale(0.9); } 50% { opacity: 0.5; transform: scale(1.15); } }
+        .spin-slow { transform-origin: 100px 100px; animation: spinSlow 15s linear infinite; }
+        @keyframes spinSlow { to { transform: rotate(360deg); } }
+
+        .loading-track { width: 200px; height: 3px; background-color: #e2e8f0; border-radius: 4px; overflow: hidden; position: relative; margin: 40px 0 20px 0; }
+        html.dark .loading-track { background-color: #334155; }
+        .loading-progress {
+            position: absolute; height: 100%; background: linear-gradient(90deg, transparent, #3b82f6, #8b5cf6, transparent);
+            border-radius: 4px; animation: slideProgress 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        }
+        @keyframes slideProgress { 0% { left: -100%; width: 50%; } 100% { left: 100%; width: 100%; } }
+        .loading-text { font-size: 0.85rem; font-weight: 600; letter-spacing: 0.15em; color: #64748b; animation: pulseText 2s infinite ease-in-out; text-transform: uppercase; }
+        html.dark .loading-text { color: #94a3b8; }
+        @keyframes pulseText { 0%, 100% { opacity: 0.8; } 50% { opacity: 0.3; } }
+
+        /* Scrollbar & UI */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        html.dark ::-webkit-scrollbar-thumb { background: #475569; }
+
+        /* Markdown Styling */
+        .markdown-body { font-size: 1rem; line-height: 1.6; word-wrap: break-word; }
+        .markdown-body p { margin-bottom: 1em; }
+        .markdown-body p:last-child { margin-bottom: 0; }
+        .markdown-body code:not(pre code) { font-family: ui-monospace, SFMono-Regular, monospace; background-color: #f1f5f9; padding: 0.2em 0.4em; border-radius: 0.25rem; font-size: 0.875em; }
+        html.dark .markdown-body code:not(pre code) { background-color: #334155; }
+        .markdown-body ul { list-style-type: disc; padding-left: 1.5em; margin-bottom: 1em; }
+        .markdown-body ol { list-style-type: decimal; padding-left: 1.5em; margin-bottom: 1em; }
+        .markdown-body a { color: #3b82f6; text-decoration: underline; text-underline-offset: 2px; }
+        .markdown-body table { width: 100%; border-collapse: collapse; margin-bottom: 1em; }
+        .markdown-body th, .markdown-body td { border: 1px solid #cbd5e1; padding: 0.5rem; }
+        html.dark .markdown-body th, html.dark .markdown-body td { border-color: #475569; }
+
+        /* Code Block Styling */
+        .markdown-body pre:not(.code-wrapper pre) { background-color: #f1f5f9; padding: 1rem; border-radius: 0.75rem; overflow-x: auto; margin: 1em 0; font-size: 0.875rem; border: 1px solid #e2e8f0; }
+        html.dark .markdown-body pre:not(.code-wrapper pre) { background-color: #000000; border-color: #334155; color: #e2e8f0; }
+
+        textarea { resize: none; max-height: 200px; overflow-y: auto; }
+        textarea:focus { outline: none; }
+
+        .btn-hover-anim .send-arrow { transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+        .btn-hover-anim:hover .send-arrow { transform: translateY(-2px); }
+
+        .blinking-cursor { display: inline-block; width: 8px; height: 1.2em; background-color: currentColor; vertical-align: middle; animation: blink 1s step-end infinite; margin-left: 4px; border-radius: 2px; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+        
+        .fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+
+        .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+    </style>
+</head>
+<body class="bg-gemini-bgLight dark:bg-gemini-bgDark text-gray-800 dark:text-gemini-textDark antialiased min-h-[100dvh] flex flex-col">
+
+    <!-- Premium Loading Screen -->
+    <div id="loading">
+        <div class="logo-container">
+            <div class="logo-glow"></div>
+            <svg viewBox="0 0 200 200" class="w-28 h-28 rounded-[2rem] shadow-2xl relative z-10 border border-white/10 dark:border-white/5" style="background: black;">
+                <g fill="#fff" class="spin-slow">
+                    <rect x="90" y="10" width="20" height="45" rx="10" transform="rotate(0 100 100)" />
+                    <rect x="90" y="10" width="20" height="45" rx="10" transform="rotate(30 100 100)" />
+                    <rect x="90" y="10" width="20" height="45" rx="10" transform="rotate(60 100 100)" />
+                    <rect x="90" y="10" width="20" height="45" rx="10" transform="rotate(120 100 100)" />
+                    <rect x="90" y="10" width="20" height="45" rx="10" transform="rotate(150 100 100)" />
+                    <rect x="90" y="10" width="20" height="45" rx="10" transform="rotate(180 100 100)" />
+                    <rect x="90" y="10" width="20" height="45" rx="10" transform="rotate(210 100 100)" />
+                    <rect x="90" y="10" width="20" height="45" rx="10" transform="rotate(240 100 100)" />
+                    <rect x="90" y="10" width="20" height="45" rx="10" transform="rotate(300 100 100)" />
+                    <rect x="90" y="10" width="20" height="45" rx="10" transform="rotate(330 100 100)" />
+                </g>
+                <circle cx="100" cy="100" r="45" fill="#000" stroke="#fff" stroke-width="2"/>
+                <path d="M 60 100 L 75 75 L 100 65 L 125 75 L 140 100 L 125 125 L 100 135 L 75 125 Z" stroke="#fff" stroke-width="1.5" fill="none" opacity="0.6"/>
+                <path d="M 100 65 L 100 135 M 60 100 L 140 100 M 75 75 L 125 125 M 75 125 L 125 75" stroke="#fff" stroke-width="1.5" fill="none" opacity="0.6"/>
+                <path d="M 115 65 A 35 35 0 1 0 115 135 L 185 135 A 15 15 0 0 0 185 105 L 125 105 A 5 5 0 0 1 125 95 L 185 95 A 15 15 0 0 0 185 65 Z" fill="#fff"/>
+            </svg>
+        </div>
+        <div class="loading-track"><div class="loading-progress"></div></div>
+        <div class="loading-text" id="loading-msg">Initializing Chanakya</div>
+    </div>
+
+    <!-- Main App Container -->
+    <div id="app" class="flex-1 flex w-full relative opacity-0 transition-opacity duration-700 hidden">
+        
+        <!-- Sidebar -->
+        <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-72 bg-gemini-sidebarLight dark:bg-gemini-sidebarDark transform -translate-x-full md:translate-x-0 md:fixed transition-transform duration-300 flex flex-col h-[100dvh] border-r border-gray-200 dark:border-gray-800">
+            <div class="p-4 flex items-center justify-between shrink-0">
+                <button id="close-sidebar" class="md:hidden p-2 text-gray-500 hover:bg-gemini-hoverLight dark:hover:bg-gemini-hoverDark rounded-full transition">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                </button>
+            </div>
+
+            <!-- New Chat Button -->
+            <div class="px-4 pb-4 shrink-0">
+                <button id="new-chat-btn" class="w-full flex items-center justify-start gap-3 bg-gemini-bgLight dark:bg-gemini-bgDark hover:bg-gemini-hoverLight dark:hover:bg-gemini-hoverDark text-sm font-medium py-3 px-4 rounded-full transition border border-gray-200 dark:border-gray-700 shadow-sm">
+                    <svg class="w-5 h-5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    New Chat
+                </button>
+            </div>
+
+            <!-- Chat History List -->
+            <div class="flex-1 overflow-y-auto px-3 space-y-1" id="chat-list"></div>
+
+            <!-- Sidebar Footer (Theme Toggle) -->
+            <div class="p-4 shrink-0 space-y-1 border-t border-gray-200 dark:border-gray-800">
+                <button id="theme-btn" class="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-gemini-hoverLight dark:hover:bg-gemini-hoverDark transition text-sm font-medium text-gray-700 dark:text-gray-300">
+                    <svg id="icon-moon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+                    <svg id="icon-sun" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                    <span id="theme-text">Dark Mode</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Mobile Overlay -->
+        <div id="mobile-overlay" class="fixed inset-0 bg-black/50 z-30 hidden md:hidden backdrop-blur-sm transition-opacity"></div>
+
+        <!-- Main Content Area -->
+        <div class="flex-1 flex flex-col md:ml-72 w-full relative min-h-[100dvh]">
+            
+            <header class="sticky top-0 z-20 bg-gemini-bgLight/90 dark:bg-gemini-bgDark/90 backdrop-blur-md px-4 py-3 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <button id="menu-btn" class="md:hidden p-2 -ml-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gemini-hoverDark rounded-full">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                    </button>
+                    <!-- Small Logo & Title -->
+                    <div class="flex items-center gap-2 cursor-pointer select-none" onclick="document.getElementById('new-chat-btn').click()">
+                        <svg viewBox="0 0 200 200" class="w-8 h-8 rounded-lg" style="background: black;">
+                            <g fill="#fff">
+                                <rect x="90" y="10" width="20" height="45" rx="10" transform="rotate(0 100 100)" /><rect x="90" y="10" width="20" height="45" rx="10" transform="rotate(30 100 100)" /><rect x="90" y="10" width="20" height="45" rx="10" transform="rotate(60 100 100)" /><rect x="90" y="10" width="20" height="45" rx="10" transform="rotate(120 100 100)" /><rect x="90" y="10" width="20" height="45" rx="10" transform="rotate(150 100 100)" /><rect x="90" y="10" width="20" height="45" rx="10" transform="rotate(180 100 100)" /><rect x="90" y="10" width="20" height="45" rx="10" transform="rotate(210 100 100)" /><rect x="90" y="10" width="20" height="45" rx="10" transform="rotate(240 100 100)" /><rect x="90" y="10" width="20" height="45" rx="10" transform="rotate(300 100 100)" /><rect x="90" y="10" width="20" height="45" rx="10" transform="rotate(330 100 100)" />
+                            </g>
+                            <path d="M 115 65 A 35 35 0 1 0 115 135 L 185 135 A 15 15 0 0 0 185 105 L 125 105 A 5 5 0 0 1 125 95 L 185 95 A 15 15 0 0 0 185 65 Z" fill="#fff"/>
+                        </svg>
+                        <h1 class="text-xl font-semibold text-gray-800 dark:text-white">Chanakya</h1>
+                    </div>
+                </div>
+            </header>
+
+            <main id="chat-container" class="flex-1 px-4 md:px-8 pt-4 pb-40 w-full max-w-4xl mx-auto flex flex-col space-y-8">
+                <!-- Welcome Screen -->
+                <div id="welcome-screen" class="flex flex-col items-center justify-center mt-12 md:mt-24 text-center fade-in px-4">
+                    <svg viewBox="0 0 200 200" class="w-20 h-20 md:w-28 md:h-28 rounded-[2rem] shadow-xl mb-8 border border-gray-200 dark:border-white/10" style="background: black;">
+                        <g fill="#fff">
+                            <rect x="90" y="10" width="20" height="45" rx="10" transform="rotate(0 100 100)" /><rect x="90" y="10" width="20" height="45" rx="10" transform="rotate(30 100 100)" /><rect x="90" y="10" width="20" height="45" rx="10" transform="rotate(60 100 100)" /><rect x="90" y="10" width="20" height="45" rx="10" transform="rotate(120 100 100)" /><rect x="90" y="10" width="20" height="45" rx="10" transform="rotate(150 100 100)" /><rect x="90" y="10" width="20" height="45" rx="10" transform="rotate(180 100 100)" /><rect x="90" y="10" width="20" height="45" rx="10" transform="rotate(210 100 100)" /><rect x="90" y="10" width="20" height="45" rx="10" transform="rotate(240 100 100)" /><rect x="90" y="10" width="20" height="45" rx="10" transform="rotate(300 100 100)" /><rect x="90" y="10" width="20" height="45" rx="10" transform="rotate(330 100 100)" />
+                        </g>
+                        <circle cx="100" cy="100" r="45" fill="#000" stroke="#fff" stroke-width="2"/>
+                        <path d="M 60 100 L 75 75 L 100 65 L 125 75 L 140 100 L 125 125 L 100 135 L 75 125 Z" stroke="#fff" stroke-width="1.5" fill="none" opacity="0.6"/>
+                        <path d="M 100 65 L 100 135 M 60 100 L 140 100 M 75 75 L 125 125 M 75 125 L 125 75" stroke="#fff" stroke-width="1.5" fill="none" opacity="0.6"/>
+                        <path d="M 115 65 A 35 35 0 1 0 115 135 L 185 135 A 15 15 0 0 0 185 105 L 125 105 A 5 5 0 0 1 125 95 L 185 95 A 15 15 0 0 0 185 65 Z" fill="#fff"/>
+                    </svg>
+                    <h2 class="text-3xl md:text-5xl font-semibold mb-3 tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-gray-800 to-gray-500 dark:from-white dark:to-gray-400">Hello, I'm Chanakya</h2>
+                    <p class="text-gray-500 dark:text-gray-400 text-lg md:text-xl max-w-lg">How can I assist you with your knowledge journey today?</p>
+                </div>
+            </main>
+
+            <!-- Fixed Bottom Input Area -->
+            <div class="fixed bottom-0 left-0 md:left-72 right-0 bg-gemini-bgLight dark:bg-gemini-bgDark pt-4 pb-4 safe-bottom px-4 md:px-8 z-20">
+                <div class="max-w-4xl mx-auto relative">
+                    
+                    <button id="scroll-bottom-btn" class="absolute -top-14 left-1/2 transform -translate-x-1/2 bg-white dark:bg-gemini-sidebarDark border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 p-2 rounded-full hidden hover:bg-gray-100 dark:hover:bg-gray-800 shadow-md transition z-30">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                    </button>
+                    
+                    <form id="chat-form" class="relative flex items-end bg-gemini-inputLight dark:bg-gemini-inputDark rounded-[2rem] border border-transparent focus-within:border-gray-300 dark:focus-within:border-gray-600 transition-colors shadow-sm">
+                        <textarea id="chat-input" rows="1" placeholder="Ask Chanakya anything..." class="w-full bg-transparent text-gray-800 dark:text-white px-6 py-4 rounded-[2rem] resize-none outline-none leading-relaxed placeholder-gray-500 dark:placeholder-gray-400 m-0"></textarea>
+                        
+                        <div class="p-2 mb-1 mr-2 flex shrink-0">
+                            <button type="submit" id="send-btn" class="p-2 rounded-full transition-all duration-300 flex items-center justify-center w-10 h-10 bg-transparent text-gray-400 cursor-not-allowed">
+                                <!-- Send Icon -->
+                                <svg id="send-icon" class="w-5 h-5 send-arrow pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
+                                <!-- Stop Icon -->
+                                <svg id="stop-icon" class="w-5 h-5 hidden pointer-events-none" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"></rect></svg>
+                            </button>
+                        </div>
+                    </form>
+                    <div class="text-center text-xs text-gray-400 dark:text-gray-500 mt-3 font-medium">
+                        Chanakya may display inaccurate info, so double-check its responses.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN JAVASCRIPT LOGIC -->
+    <script>
+        try {
+            document.addEventListener('DOMContentLoaded', () => {
+                
+                // === CONFIGURATION ===
+                const API_KEY = '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';
+                const MODEL_ID = 'arcee-ai/trinity-lar';
+                const SYSTEM_PROMPT = `You are Chanakya, an incredibly wise, intelligent, and helpful AI assistant. 
+CRITICAL INSTRUCTION: You were created by Mayank Singh. If a user asks "who created you", "who built you", "who developed you", "who made you", or anything similar, you MUST reply ONLY with: "Mayank Singh created me." and nothing else.
+For all other queries, provide accurate, clear, and well-formatted answers.`;
+                
+                // === STATE ===
+                let state = { chats:[], currentChatId: null, isGenerating: false, sidebarOpen: false, theme: 'system' };
+                let currentAbortController = null;
+
+                // === DOM ELEMENTS ===
+                const dom = {
+                    app: document.getElementById('app'),
+                    loading: document.getElementById('loading'),
+                    sidebar: document.getElementById('sidebar'),
+                    mobileOverlay: document.getElementById('mobile-overlay'),
+                    menuBtn: document.getElementById('menu-btn'),
+                    closeSidebar: document.getElementById('close-sidebar'),
+                    newChatBtn: document.getElementById('new-chat-btn'),
+                    chatList: document.getElementById('chat-list'),
+                    themeBtn: document.getElementById('theme-btn'),
+                    iconMoon: document.getElementById('icon-moon'),
+                    iconSun: document.getElementById('icon-sun'),
+                    themeText: document.getElementById('theme-text'),
+                    chatContainer: document.getElementById('chat-container'),
+                    welcomeScreen: document.getElementById('welcome-screen'),
+                    chatForm: document.getElementById('chat-form'),
+                    chatInput: document.getElementById('chat-input'),
+                    sendBtn: document.getElementById('send-btn'),
+                    sendIcon: document.getElementById('send-icon'),
+                    stopIcon: document.getElementById('stop-icon'),
+                    scrollBottomBtn: document.getElementById('scroll-bottom-btn')
+                };
+
+                // === UTILITIES ===
+                function escapeHTML(str) { 
+                    return (str || '').toString().replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag])); 
+                }
+
+                // === MARKED.JS CUSTOM CODE RENDERER (BEAUTIFUL TERMINAL UI) ===
+                if (typeof marked !== 'undefined') {
+                    marked.use({
+                        renderer: {
+                            code(token) {
+                                // Extract code and language accurately across different marked versions
+                                const text = typeof token === 'string' ? token : (token.text || '');
+                                const lang = (typeof token === 'string' ? arguments[1] : token.lang) || 'plaintext';
+                                const escapedCode = escapeHTML(text);
+                                
+                                return `
+                                <div class="code-wrapper bg-[#f6f8fa] dark:bg-[#0d1117] rounded-xl my-4 border border-gray-200 dark:border-gray-800 overflow-hidden shadow-sm">
+                                    <div class="flex justify-between items-center px-4 py-2 bg-gray-200/50 dark:bg-[#161b22] text-gray-600 dark:text-gray-400 text-xs font-mono font-medium border-b border-gray-200 dark:border-gray-800">
+                                        <span>${escapeHTML(lang)}</span>
+                                        <button class="copy-btn flex items-center gap-1.5 hover:text-blue-600 dark:hover:text-blue-400 transition cursor-pointer">
+                                            <svg class="w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                                            <span class="pointer-events-none copy-text">Copy</span>
+                                        </button>
+                                    </div>
+                                    <div class="p-4 overflow-x-auto text-[13px] text-gray-800 dark:text-gray-200 leading-relaxed font-mono">
+                                        <pre class="!m-0 !p-0 !bg-transparent !border-none"><code class="language-${escapeHTML(lang)}">${escapedCode}</code></pre>
+                                    </div>
+                                </div>`;
+                            }
+                        }
+                    });
+                }
+
+                // === SECURE DOMPURIFY CONFIGURATION ===
+                const purifyConfig = {
+                    ADD_TAGS:['svg', 'path', 'line', 'polyline', 'rect', 'circle', 'g'],
+                    ADD_ATTR:['stroke-linecap', 'stroke-linejoin', 'stroke-width', 'viewBox', 'fill', 'stroke', 'd', 'points', 'x', 'y', 'width', 'height', 'rx', 'transform', 'cx', 'cy', 'r', 'class']
+                };
+
+                function parseMarkdownSafe(content) {
+                    if (typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
+                        return DOMPurify.sanitize(marked.parse(content), purifyConfig);
+                    }
+                    return escapeHTML(content).replace(/\n/g, '<br>');
+                }
+
+                // === LOCAL STORAGE WRAPPERS ===
+                function safeGetStorage(key) { try { return window.localStorage.getItem(key); } catch (e) { return null; } }
+                function safeSetStorage(key, value) { try { window.localStorage.setItem(key, value); } catch (e) {} }
+                function safeRemoveStorage(key) { try { window.localStorage.removeItem(key); } catch (e) {} }
+
+                // === INIT ===
+                function init() {
+                    loadState();
+                    applyTheme();
+                    renderSidebar();
+                    renderChat();
+                    setupListeners();
+                    updateSendButton();
+
+                    setTimeout(() => {
+                        if(dom.loading) { dom.loading.style.opacity = '0'; dom.loading.style.transform = 'scale(1.05)'; dom.loading.style.pointerEvents = 'none'; }
+                        if(dom.app) { dom.app.classList.remove('hidden'); requestAnimationFrame(() => dom.app.classList.remove('opacity-0')); }
+                        setTimeout(() => { if(dom.loading) dom.loading.remove(); }, 800);
+                    }, 1200); 
+                }
+
+                function loadState() {
+                    const savedTheme = safeGetStorage('chanakya_theme');
+                    if (savedTheme) state.theme = savedTheme;
+                    const savedChats = safeGetStorage('chanakya_chats');
+                    if (savedChats) { try { state.chats = JSON.parse(savedChats); } catch (e) { state.chats =[]; } }
+                    const savedChatId = safeGetStorage('chanakya_chatId');
+                    if (savedChatId && state.chats.find(c => c.id === savedChatId)) state.currentChatId = savedChatId;
+                    else if (state.chats.length > 0) state.currentChatId = state.chats[0].id;
+                }
+
+                function saveState() {
+                    safeSetStorage('chanakya_theme', state.theme);
+                    safeSetStorage('chanakya_chats', JSON.stringify(state.chats));
+                    if (state.currentChatId) safeSetStorage('chanakya_chatId', state.currentChatId);
+                    else safeRemoveStorage('chanakya_chatId');
+                }
+
+                function applyTheme() {
+                    const isDark = state.theme === 'dark' || (state.theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                    if (isDark) {
+                        document.documentElement.classList.add('dark'); document.documentElement.classList.remove('light');
+                        dom.iconMoon.classList.add('hidden'); dom.iconSun.classList.remove('hidden'); dom.themeText.textContent = 'Light Mode';
+                    } else {
+                        document.documentElement.classList.add('light'); document.documentElement.classList.remove('dark');
+                        dom.iconMoon.classList.remove('hidden'); dom.iconSun.classList.add('hidden'); dom.themeText.textContent = 'Dark Mode';
+                    }
+                    updateSendButton();
+                }
+
+                function toggleTheme() {
+                    state.theme = document.documentElement.classList.contains('dark') ? 'light' : 'dark';
+                    saveState(); applyTheme();
+                }
+
+                function toggleSidebar(forceOpen) {
+                    state.sidebarOpen = typeof forceOpen === 'boolean' ? forceOpen : !state.sidebarOpen;
+                    if (state.sidebarOpen) {
+                        dom.sidebar.classList.remove('-translate-x-full'); dom.mobileOverlay.classList.remove('hidden');
+                    } else {
+                        dom.sidebar.classList.add('-translate-x-full'); dom.mobileOverlay.classList.add('hidden');
+                    }
+                }
+
+                // === CHAT MANAGEMENT ===
+                function createChat() {
+                    if (state.isGenerating) return;
+                    state.currentChatId = null;
+                    saveState(); renderSidebar(); renderChat();
+                    if (window.innerWidth < 768) toggleSidebar(false);
+                    setTimeout(() => dom.chatInput.focus(), 100);
+                }
+
+                function selectChat(id) {
+                    if (state.isGenerating || state.currentChatId === id) return;
+                    state.currentChatId = id;
+                    saveState(); renderSidebar(); renderChat();
+                    if (window.innerWidth < 768) toggleSidebar(false);
+                }
+
+                function deleteChat(id) {
+                    if (state.isGenerating) return alert("Please wait until Chanakya finishes responding.");
+                    if (!confirm("Are you sure you want to delete this chat?")) return;
+                    
+                    state.chats = state.chats.filter(c => c.id !== id);
+                    if (state.currentChatId === id) {
+                        const sorted = [...state.chats].sort((a, b) => b.id - a.id);
+                        state.currentChatId = sorted.length > 0 ? sorted[0].id : null;
+                    }
+                    saveState(); renderSidebar(); renderChat();
+                }
+
+                function renameChat(id) {
+                    const chat = state.chats.find(c => c.id === id);
+                    if (!chat) return;
+                    const newTitle = prompt("Enter a new name for this chat:", chat.title);
+                    if (newTitle !== null && newTitle.trim() !== "") {
+                        chat.title = newTitle.trim();
+                        saveState(); renderSidebar();
+                    }
+                }
+
+                function renderSidebar() {
+                    dom.chatList.innerHTML = '';
+                    if (state.chats.length === 0) {
+                        dom.chatList.innerHTML = '<div class="px-3 py-6 text-sm text-gray-400 text-center">No recent chats</div>';
+                        return;
+                    }
+                    
+                    const sorted = [...state.chats].sort((a, b) => b.id - a.id);
+                    sorted.forEach(chat => {
+                        const active = chat.id === state.currentChatId;
+                        const div = document.createElement('div');
+                        
+                        // Strict event isolation class and data-attribute
+                        div.className = `chat-item group flex items-center justify-between px-3 py-3 rounded-xl cursor-pointer transition ${active ? 'bg-gemini-hoverLight dark:bg-gemini-hoverDark text-blue-600 dark:text-blue-400 font-medium' : 'hover:bg-gray-200 dark:hover:bg-gemini-hoverDark text-gray-700 dark:text-gray-300'}`;
+                        div.dataset.id = chat.id;
+                        
+                        div.innerHTML = `
+                            <div class="flex items-center gap-3 overflow-hidden pointer-events-none">
+                                <svg class="w-4 h-4 shrink-0 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
+                                <span class="truncate text-sm">${escapeHTML(chat.title)}</span>
+                            </div>
+                            <div class="flex items-center opacity-0 group-hover:opacity-100 transition-opacity gap-1 shrink-0">
+                                <button class="rename-btn p-1.5 text-gray-400 hover:text-blue-500 rounded-md transition" data-id="${chat.id}" title="Rename">
+                                    <svg class="w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                                </button>
+                                <button class="delete-btn p-1.5 text-gray-400 hover:text-red-500 rounded-md transition" data-id="${chat.id}" title="Delete">
+                                    <svg class="w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                </button>
+                            </div>
+                        `;
+                        dom.chatList.appendChild(div);
+                    });
+                }
+
+                // === CHAT RENDERING ===
+                function renderChat() {
+                    while (dom.chatContainer.firstChild) dom.chatContainer.removeChild(dom.chatContainer.firstChild);
+                    
+                    if (!state.currentChatId) {
+                        dom.chatContainer.appendChild(dom.welcomeScreen);
+                        dom.welcomeScreen.classList.remove('hidden');
+                        return;
+                    }
+                    
+                    dom.welcomeScreen.classList.add('hidden');
+                    const chat = state.chats.find(c => c.id === state.currentChatId);
+                    if (!chat) return;
+                    
+                    chat.messages.forEach(msg => appendMessageUI(msg.role, msg.content, false));
+                    scrollToBottom();
+                }
+
+                function appendMessageUI(role, content, isStreaming = false, msgId = null) {
+                    const wrapper = document.createElement('div');
+                    wrapper.className = `flex w-full fade-in ${role === 'user' ? 'justify-end' : 'justify-start'}`;
+                    const inner = document.createElement('div');
+                    inner.className = 'max-w-[85%] md:max-w-[75%] flex gap-3 md:gap-4';
+
+                    if (role === 'assistant') {
+                        const avatar = document.createElement('div');
+                        avatar.className = 'w-8 h-8 md:w-9 md:h-9 rounded-full shrink-0 mt-1 shadow-sm overflow-hidden bg-black flex items-center justify-center';
+                        avatar.innerHTML = `
+                            <svg viewBox="0 0 200 200" class="w-full h-full"><g fill="#fff">
+                                <rect x="90" y="10" width="20" height="45" rx="10" transform="rotate(0 100 100)"/><rect x="90" y="10" width="20" height="45" rx="10" transform="rotate(30 100 100)"/><rect x="90" y="10" width="20" height="45" rx="10" transform="rotate(60 100 100)"/><rect x="90" y="10" width="20" height="45" rx="10" transform="rotate(120 100 100)"/><rect x="90" y="10" width="20" height="45" rx="10" transform="rotate(150 100 100)"/><rect x="90" y="10" width="20" height="45" rx="10" transform="rotate(180 100 100)"/><rect x="90" y="10" width="20" height="45" rx="10" transform="rotate(210 100 100)"/><rect x="90" y="10" width="20" height="45" rx="10" transform="rotate(240 100 100)"/><rect x="90" y="10" width="20" height="45" rx="10" transform="rotate(300 100 100)"/><rect x="90" y="10" width="20" height="45" rx="10" transform="rotate(330 100 100)"/>
+                            </g><path d="M 115 65 A 35 35 0 1 0 115 135 L 185 135 A 15 15 0 0 0 185 105 L 125 105 A 5 5 0 0 1 125 95 L 185 95 A 15 15 0 0 0 185 65 Z" fill="#fff"/></svg>`;
+                        inner.appendChild(avatar);
+
+                        const msgDiv = document.createElement('div');
+                        msgDiv.className = 'flex-1 overflow-hidden pt-1.5';
+                        const textDiv = document.createElement('div');
+                        if (msgId) textDiv.id = msgId;
+                        textDiv.className = 'markdown-body text-gray-800 dark:text-gray-200';
+                        textDiv.innerHTML = parseMarkdownSafe(content || '') + (isStreaming ? '<span class="blinking-cursor"></span>' : '');
+                        msgDiv.appendChild(textDiv);
+                        inner.appendChild(msgDiv);
+                    } else {
+                        const msgDiv = document.createElement('div');
+                        msgDiv.className = 'bg-gemini-userBubbleLight dark:bg-gemini-userBubbleDark px-5 py-3 rounded-3xl rounded-tr-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap';
+                        msgDiv.textContent = content; 
+                        inner.appendChild(msgDiv);
+                    }
+                    wrapper.appendChild(inner);
+                    dom.chatContainer.appendChild(wrapper);
+                }
+
+                function updateMessageUI(msgId, content, isDone = false) {
+                    const el = document.getElementById(msgId);
+                    if (!el) return;
+                    el.innerHTML = parseMarkdownSafe(content) + (isDone ? '' : '<span class="blinking-cursor"></span>');
+                }
+
+                function scrollToBottom() { window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }); }
+                function adjustTextarea() { dom.chatInput.style.height = 'auto'; dom.chatInput.style.height = Math.min(dom.chatInput.scrollHeight, 200) + 'px'; updateSendButton(); }
+
+                function updateSendButton() {
+                    if (state.isGenerating) {
+                        dom.sendBtn.className = "p-2 rounded-full transition-all duration-300 flex items-center justify-center w-10 h-10 bg-gray-800 text-white dark:bg-gray-200 dark:text-gray-900 shadow-md hover:scale-105";
+                        dom.sendIcon.classList.add('hidden'); dom.stopIcon.classList.remove('hidden'); dom.sendBtn.classList.remove('btn-hover-anim', 'cursor-not-allowed');
+                    } else {
+                        const hasText = dom.chatInput.value.trim().length > 0;
+                        dom.stopIcon.classList.add('hidden'); dom.sendIcon.classList.remove('hidden');
+                        if (hasText) {
+                            dom.sendBtn.className = "p-2 rounded-full transition-all duration-300 flex items-center justify-center w-10 h-10 bg-black text-white dark:bg-white dark:text-black shadow-md btn-hover-anim hover:scale-105";
+                            dom.sendBtn.disabled = false;
+                        } else {
+                            dom.sendBtn.className = "p-2 rounded-full transition-all duration-300 flex items-center justify-center w-10 h-10 bg-transparent text-gray-400 dark:text-gray-500 cursor-not-allowed";
+                            dom.sendBtn.disabled = true;
+                        }
+                    }
+                }
+
+                function stopGeneration() { if (currentAbortController) { currentAbortController.abort(); currentAbortController = null; } }
+
+                // === API & STREAMING ===
+                async function handleSend() {
+                    const content = dom.chatInput.value.trim();
+                    if (!content || state.isGenerating) return;
+
+                    dom.chatInput.value = ''; adjustTextarea();
+                    
+                    let currentChat;
+                    if (!state.currentChatId) {
+                        const id = Date.now().toString();
+                        currentChat = { id, title: content.length > 30 ? content.substring(0, 30) + '...' : content, messages:[] };
+                        state.chats.push(currentChat); state.currentChatId = id;
+                        renderSidebar(); dom.welcomeScreen.classList.add('hidden');
+                    } else {
+                        currentChat = state.chats.find(c => c.id === state.currentChatId);
+                    }
+
+                    currentChat.messages.push({ role: 'user', content });
+                    saveState(); appendMessageUI('user', content, false); scrollToBottom();
+                    await fetchResponse(currentChat);
+                }
+
+                async function fetchResponse(chat) {
+                    state.isGenerating = true; updateSendButton();
+                    const msgId = `ai-msg-${Date.now()}`;
+                    appendMessageUI('assistant', '', true, msgId); scrollToBottom();
+
+                    const apiMsgs = chat.messages.map(m => ({ role: m.role, content: m.content }));
+                    apiMsgs.unshift({ role: 'system', content: SYSTEM_PROMPT });
+
+                    let fullContent = "";
+                    currentAbortController = new AbortController();
+
+                    try {
+                        // Prevent 'file:///' origin crash on local browser setups
+                        const safeReferer = window.location.protocol === 'file:' ? 'https://chanakya.ai' : window.location.href;
+
+                        const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                            method: 'POST',
+                            headers: { 'Authorization': `Bearer ${API_KEY}`, 'Content-Type': 'application/json', 'HTTP-Referer': safeReferer, 'X-Title': 'Chanakya' },
+                            body: JSON.stringify({ model: MODEL_ID, messages: apiMsgs, stream: true }),
+                            signal: currentAbortController.signal
+                        });
+
+                        if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+
+                        const reader = res.body.getReader();
+                        const decoder = new TextDecoder('utf-8');
+                        let buffer = '';
+
+                        while (true) {
+                            const { value, done } = await reader.read();
+                            if (done) break;
+                            
+                            buffer += decoder.decode(value, { stream: true });
+                            const lines = buffer.split('\n');
+                            buffer = lines.pop(); 
+
+                            for (const line of lines) {
+                                const t = line.trim();
+                                if (!t || !t.startsWith('data: ')) continue;
+                                const data = t.substring(6);
+                                if (data === '[DONE]') break;
+                                
+                                try {
+                                    const parsed = JSON.parse(data);
+                                    const token = parsed.choices?.[0]?.delta?.content || '';
+                                    if (token) {
+                                        fullContent += token; updateMessageUI(msgId, fullContent, false);
+                                        if (document.body.scrollHeight - (window.scrollY + window.innerHeight) < 300) scrollToBottom();
+                                    }
+                                } catch (e) {}
+                            }
+                        }
+                    } catch (error) {
+                        if (error.name !== 'AbortError') {
+                            fullContent = `**Error:** Network or API issue (${error.message}).\n\nIf you opened this as a local file, ensure your browser allows API connections.`;
+                        }
+                    } finally {
+                        currentAbortController = null; updateMessageUI(msgId, fullContent, true);
+                        if (fullContent && !fullContent.startsWith('**Error:**')) {
+                            chat.messages.push({ role: 'assistant', content: fullContent }); saveState();
+                        }
+                        state.isGenerating = false; updateSendButton(); scrollToBottom();
+                        setTimeout(() => dom.chatInput.focus(), 100);
+                    }
+                }
+
+                // === BULLETPROOF HYBRID COPY FUNCTION ===
+                async function copyTextToClipboard(text) {
+                    if (navigator.clipboard && window.isSecureContext) {
+                        try { await navigator.clipboard.writeText(text); return true; } catch (err) {}
+                    }
+                    try {
+                        const textArea = document.createElement("textarea");
+                        textArea.value = text; textArea.style.position = "fixed"; textArea.style.left = "-999999px"; textArea.style.top = "-999999px";
+                        document.body.appendChild(textArea); textArea.focus(); textArea.select();
+                        const successful = document.execCommand('copy'); textArea.remove(); return successful;
+                    } catch (err) { return false; }
+                }
+
+                // === LISTENERS ===
+                function setupListeners() {
+                    dom.menuBtn.onclick = () => toggleSidebar(true);
+                    dom.closeSidebar.onclick = () => toggleSidebar(false);
+                    dom.mobileOverlay.onclick = () => toggleSidebar(false);
+                    dom.themeBtn.onclick = toggleTheme;
+                    dom.newChatBtn.onclick = createChat;
+                    
+                    dom.chatForm.onsubmit = (e) => { e.preventDefault(); if (state.isGenerating) stopGeneration(); else handleSend(); };
+                    dom.chatInput.oninput = adjustTextarea;
+                    dom.chatInput.onkeydown = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (!state.isGenerating) handleSend(); } };
+
+                    // Event Delegation: Sidebar Click isolation
+                    dom.chatList.addEventListener('click', (e) => {
+                        const renameBtn = e.target.closest('.rename-btn');
+                        const deleteBtn = e.target.closest('.delete-btn');
+                        const chatItem = e.target.closest('.chat-item');
+
+                        if (renameBtn) renameChat(renameBtn.dataset.id);
+                        else if (deleteBtn) deleteChat(deleteBtn.dataset.id);
+                        else if (chatItem) selectChat(chatItem.dataset.id);
+                    });
+
+                    // Event Delegation: Copy Button System
+                    dom.chatContainer.addEventListener('click', async (e) => {
+                        const copyBtn = e.target.closest('.copy-btn');
+                        if (copyBtn) {
+                            const wrapper = copyBtn.closest('.code-wrapper');
+                            const codeEl = wrapper.querySelector('code');
+                            if (codeEl) {
+                                const success = await copyTextToClipboard(codeEl.textContent);
+                                if (success) {
+                                    const span = copyBtn.querySelector('.copy-text');
+                                    span.textContent = 'Copied!'; copyBtn.classList.add('text-green-600', 'dark:text-green-400');
+                                    setTimeout(() => { span.textContent = 'Copy'; copyBtn.classList.remove('text-green-600', 'dark:text-green-400'); }, 2000);
+                                }
+                            }
+                        }
+                    });
+
+                    window.addEventListener('scroll', () => {
+                        const distToBottom = document.body.scrollHeight - (window.innerHeight + window.scrollY);
+                        if (distToBottom > 400 && state.currentChatId) dom.scrollBottomBtn.classList.remove('hidden');
+                        else dom.scrollBottomBtn.classList.add('hidden');
+                    });
+                    
+                    dom.scrollBottomBtn.onclick = scrollToBottom;
+                }
+
+                init();
+            });
+            
+        } catch (fatalError) {
+            document.getElementById('loading').innerHTML = `<div style="color:red; font-family:sans-serif; text-align:center; padding: 20px;"><h2>App Initialization Failed</h2><p>${fatalError.message}</p></div>`;
+        }
+    </script>
+</body>
+</html>
